@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "framer-motion": "^11.3.0",
     "html2pdf.js": "^0.14.0",
     "lightweight-charts": "^4.2.0",
