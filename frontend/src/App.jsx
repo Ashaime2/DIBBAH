@@ -31,7 +31,7 @@ function Navbar() {
           <NavLink to="/" end className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>Home</NavLink>
           <NavLink to="/lab" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>Lab</NavLink>
           <NavLink to="/compare" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>Compare</NavLink>
-          <NavLink to="/tournament" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>Tournament 🏆</NavLink>
+          <NavLink to="/tournament" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>Tournament</NavLink>
           <NavLink to="/strategies" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>Strategies</NavLink>
           <NavLink to="/methodology" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>Methodology</NavLink>
         </div>
@@ -59,7 +59,7 @@ function PageTitleHandler() {
       '/': 'DIBBAH | Home',
       '/lab': 'DIBBAH | Lab',
       '/compare': 'DIBBAH | Comparison',
-      '/tournament': 'DIBBAH | Tournament 🏆',
+      '/tournament': 'DIBBAH | Tournament',
       '/strategies': 'DIBBAH | Strategy Hub',
       '/methodology': 'DIBBAH | Methodology'
     };

@@ -410,7 +410,7 @@ function CompareResultsView({ results, ranking, ticker }) {
           <h3 style={{ marginBottom: '1.5rem', fontSize: '1.1rem', color: 'var(--text-primary)' }}>Leaderboard</h3>
           {ranking.by_return && (
             <div style={{ marginBottom: '1.5rem' }}>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.5rem', textTransform: 'uppercase' }}>🏆 Best Return</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Best Return</div>
               {ranking.by_return.slice(0, 3).map((r, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: i === 0 ? 'rgba(59,130,246,0.1)' : 'transparent', borderRadius: '4px', marginBottom: '2px' }}>
                   <span style={{ fontSize: '0.9rem' }}>#{r.rank} {r.strategy}</span>
