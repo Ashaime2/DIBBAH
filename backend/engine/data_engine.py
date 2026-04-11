@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 import requests
+from yahooquery import Ticker
 
 yf_session = requests.Session()
 yf_session.headers.update({
@@ -60,12 +61,34 @@ def fetch_market_data(
 
 
     try:
+        # Step 1: Try yahooquery (usually more reliable on cloud environments)
+        yq_ticker = Ticker(ticker, session=yf_session)
         if start_date and end_date:
-            df = yf.download(ticker, start=start_date, end=end_date, interval=interval, progress=False, session=yf_session)
+            df = yq_ticker.history(start=start_date, end=end_date, interval=interval)
         else:
-            df = yf.download(ticker, period=period, interval=interval, progress=False, session=yf_session)
+            df = yq_ticker.history(period=period, interval=interval)
+        
+        # Check if yahooquery returned data
+        if isinstance(df, pd.DataFrame) and not df.empty:
+            if isinstance(df.index, pd.MultiIndex):
+                df = df.reset_index()
+            elif df.index.name == 'date':
+                df = df.reset_index()
+                
+            # Rename columns to match our standard
+            df = df.rename(columns={'adjclose': 'close'})
+        else:
+            # Step 2: Fallback to yfinance if yahooquery failed
+            if start_date and end_date:
+                df = yf.download(ticker, start=start_date, end=end_date, interval=interval, progress=False, session=yf_session)
+            else:
+                df = yf.download(ticker, period=period, interval=interval, progress=False, session=yf_session)
     except Exception as e:
-        raise ValueError(f"Failed to fetch data for {ticker}: {str(e)}")
+        # Final Fallback Attempt with yfinance if everything above crashed
+        try:
+            df = yf.download(ticker, period=period, interval=interval, progress=False, session=yf_session)
+        except Exception:
+            raise ValueError(f"Failed to fetch data for {ticker}: {str(e)}")
 
     if df.empty:
         raise ValueError(f"No data found for ticker: {ticker}")
