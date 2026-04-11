@@ -105,7 +105,8 @@ def calculate_kpis(
     market_exposure = n_trades * avg_duration / n_days if n_days > 0 else 0
     market_exposure = min(market_exposure, 1.0)
 
-    return {
+    # Final Sanitization: Ensure all values are JSON-serializable (no NaN/Inf)
+    res = {
         "total_return": round(total_return * 100, 2),
         "annualized_return": round(annualized_return * 100, 2),
         "annualized_volatility": round(annualized_vol * 100, 2),
@@ -114,7 +115,7 @@ def calculate_kpis(
         "max_drawdown": round(max_drawdown * 100, 2),
         "calmar_ratio": round(calmar, 2),
         "win_rate": round(win_rate * 100, 1),
-        "profit_factor": round(profit_factor, 2) if profit_factor != float('inf') else 999.99,
+        "profit_factor": round(profit_factor, 2) if (profit_factor != float('inf') and not np.isnan(profit_factor)) else 999.99,
         "total_trades": n_trades,
         "avg_trade_duration": round(avg_duration, 1),
         "market_exposure": round(market_exposure * 100, 1),
@@ -125,6 +126,13 @@ def calculate_kpis(
         "max_consecutive_wins": max_consec_wins,
         "max_consecutive_losses": max_consec_losses,
     }
+    
+    # Global replacement for any lingering NaNs
+    for k, v in res.items():
+        if isinstance(v, float) and (np.isnan(v) or np.isinf(v)):
+            res[k] = 0.0
+            
+    return res
 
 
 def _max_consecutive(values: List[float], condition) -> int:

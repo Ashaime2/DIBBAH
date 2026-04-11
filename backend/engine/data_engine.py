@@ -138,8 +138,18 @@ def fetch_market_data(
 
     df = df[required].copy()
 
+    # NORMALIZE DATES (The absolute fix for "can't compare datetime.datetime to datetime.date")
+    # We force every date to be a timezone-naive pd.Timestamp
+    df["date"] = pd.to_datetime(df["date"])
+    if df["date"].dt.tz is not None:
+        df["date"] = df["date"].dt.tz_localize(None)
+
     # Clean data types
     df = df.dropna(subset=["open", "high", "low", "close"])
+    # Replace any NaN or Inf in the OHLCV columns with 0
+    for col in ["open", "high", "low", "close", "volume"]:
+        df[col] = df[col].replace([np.inf, -np.inf], np.nan).fillna(0)
+    
     df = df.sort_values("date").reset_index(drop=True)
 
     # Save to Database
