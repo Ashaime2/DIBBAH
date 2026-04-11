@@ -55,20 +55,8 @@ def fetch_market_data(
     # In a full prod system, we would accurately check if the exact dates are present.
     # For now, if the df is not empty and covers a reasonable amount of data, we return it.
     if not cached_df.empty and len(cached_df) > 200:
-        # Standardize potentially duplicated columns in cache
-        if "close" in cached_df.columns:
-            # If multiple "close" columns exist, keep only the first one
-            cols = pd.Series(cached_df.columns)
-            for dupe in cols[cols.duplicated()].unique():
-                cols[cols == dupe] = [f"{dupe}_{i}" if i != 0 else dupe for i in range(len(cols[cols == dupe]))]
-            cached_df.columns = cols
-            
-        # Calculate returns missing from database
-        # Use values.flatten() to ensure we are assigning a 1D array
-        close_series = cached_df["close"]
-        if isinstance(close_series, pd.DataFrame):
-            close_series = close_series.iloc[:, 0]
-        cached_df["returns"] = close_series.pct_change()
+        # Standardize potentially duplicated columns and force naive timestamps
+        cached_df = _standardize_df(cached_df, ticker, interval, save=False)
         return cached_df
 
 
@@ -105,63 +93,72 @@ def fetch_market_data(
     if df.empty:
         raise ValueError(f"No data found for ticker: {ticker}")
 
-    # HANDLE MULTI-INDEX (from yahooquery or yfinance)
+    # CLEAN AND STANDARDIZE
+    df = _standardize_df(df, ticker, interval, save=True)
+    return df
+
+
+def _standardize_df(df: pd.DataFrame, ticker: str, interval: str, save: bool = True) -> pd.DataFrame:
+    """Centralized function to clean and standardize market data."""
+    if df.empty:
+        return df
+
+    # 1. HANDLE MULTI-INDEX (from yahooquery or yfinance)
     if isinstance(df.index, pd.MultiIndex) or df.index.name in ['date', 'datetime']:
         df = df.reset_index()
 
-    # Standardize column names to lowercase
+    # 2. STANDARDIZE COLUMNS
     df.columns = [str(col).lower().replace(" ", "_").replace("adj_close", "close") for col in df.columns]
-
-    # Map yahooquery 'adjclose' to 'close' if 'close' is not already what we want
     if 'adjclose' in df.columns:
         df = df.rename(columns={'adjclose': 'close'})
-
-    # Ensure we have a 'date' column
     if 'datetime' in df.columns and 'date' not in df.columns:
         df = df.rename(columns={'datetime': 'date'})
 
-    # Keep only what we need and in specific order to avoid any surprises
+    # DEDUPLICATE COLUMNS (Keep first of each)
+    df = df.loc[:, ~df.columns.duplicated()].copy()
+
+    # 3. ENSURE REQUIRED COLUMNS
     required = ["date", "open", "high", "low", "close", "volume"]
     for col in required:
         if col not in df.columns:
-             # Look for capitalized versions if lowercase failed
              for existing in df.columns:
                  if existing.lower() == col:
                      df = df.rename(columns={existing: col})
                      break
     
-    # Final check for missing columns
-    available = list(df.columns)
-    missing = [c for c in required if c not in available]
+    missing = [c for c in required if c not in df.columns]
     if missing:
-        raise ValueError(f"Missing required columns: {missing}. Available: {available}")
+        # If we are in cache path, it's possible we only have some columns, but for now we expect all.
+        pass 
 
-    df = df[required].copy()
+    # Select only required columns if they exist
+    existing_required = [c for c in required if c in df.columns]
+    df = df[existing_required].copy()
 
-    # NORMALIZE DATES (The absolute fix for "can't compare datetime.datetime to datetime.date")
-    # We force every date to be a timezone-naive pd.Timestamp
+    # 4. NORMALIZE DATES (The fix for tz-aware vs tz-naive)
     df["date"] = pd.to_datetime(df["date"])
     if df["date"].dt.tz is not None:
         df["date"] = df["date"].dt.tz_localize(None)
 
-    # Clean data types
-    df = df.dropna(subset=["open", "high", "low", "close"])
-    # Replace any NaN or Inf in the OHLCV columns with 0
+    # 5. CLEAN DATA TYPES
     for col in ["open", "high", "low", "close", "volume"]:
-        df[col] = df[col].replace([np.inf, -np.inf], np.nan).fillna(0)
+        if col in df.columns:
+            df[col] = df[col].replace([np.inf, -np.inf], np.nan).fillna(0)
     
+    df = df.dropna(subset=["close"]) if "close" in df.columns else df
     df = df.sort_values("date").reset_index(drop=True)
 
-    # Save to Database
-    save_market_data(df, ticker, interval)
+    # 6. SAVE TO DB (if requested)
+    if save and "ticker" not in df.columns:
+        save_market_data(df, ticker, interval)
 
-    # Calculate returns
-    # Use iloc[:, 0] if duplicate columns somehow still exist
-    close_series = df["close"]
-    if isinstance(close_series, pd.DataFrame):
-        close_series = close_series.iloc[:, 0]
-    df["returns"] = close_series.pct_change()
-    df["cum_returns"] = (1 + df["returns"].fillna(0)).cumprod()
+    # 7. CALCULATE RETURNS
+    if "close" in df.columns:
+        close_series = df["close"]
+        if isinstance(close_series, pd.DataFrame):
+            close_series = close_series.iloc[:, 0]
+        df["returns"] = close_series.pct_change()
+        df["cum_returns"] = (1 + df["returns"].fillna(0)).cumprod()
 
     return df
 

@@ -148,7 +148,9 @@ def run_backtest(
             holding_days = 0
             if entry_date is not None:
                 try:
-                    holding_days = (pd.Timestamp(date) - pd.Timestamp(entry_date)).days
+                    d1 = pd.Timestamp(date).tz_localize(None) if pd.Timestamp(date).tz else pd.Timestamp(date)
+                    d2 = pd.Timestamp(entry_date).tz_localize(None) if pd.Timestamp(entry_date).tz else pd.Timestamp(entry_date)
+                    holding_days = (d1 - d2).days
                 except Exception:
                     holding_days = 0
 
