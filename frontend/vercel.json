@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://dibbah.onrender.com/api/$1"
+      "source": "/api/:path*",
+      "destination": "https://dibbah.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",

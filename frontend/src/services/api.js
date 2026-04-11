@@ -1,5 +1,5 @@
-// Priority: Environment Variable > Hardcoded Render URL > Local Proxy
-const API_BASE = import.meta.env.VITE_API_URL || 'https://dibbah.onrender.com/api';
+// Use Vercel's transparent proxy to bypass CORS
+const API_BASE = '/api';
 
 class ApiService {
   async _fetch(url, options = {}) {
