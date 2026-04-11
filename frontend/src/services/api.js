@@ -1,4 +1,5 @@
-const API_BASE = 'https://dibbah.onrender.com/api';
+// Priority: Environment Variable > Hardcoded Render URL > Local Proxy
+const API_BASE = import.meta.env.VITE_API_URL || 'https://dibbah.onrender.com/api';
 
 class ApiService {
   async _fetch(url, options = {}) {
