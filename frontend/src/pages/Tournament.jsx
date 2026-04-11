@@ -19,6 +19,12 @@ export default function Tournament() {
   const [isSearching, setIsSearching] = useState(false);
   const [expandedSetupId, setExpandedSetupId] = useState(null);
   const [expandedResultIdx, setExpandedResultIdx] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // Execution settings
+  const [commission, setCommission] = useState(0.001); // 0.1%
+  const [slippage, setSlippage] = useState(0.0005);   // 0.05%
+  const [initialCapital, setInitialCapital] = useState(10000);
 
   const handleSearch = async (query) => {
     setTicker(query);
@@ -88,14 +94,14 @@ export default function Tournament() {
 
       const payload = {
         ticker: ticker.toUpperCase(),
-        period: dateMode === 'preset' ? period : '5y', // fallback
+        period: dateMode === 'preset' ? period : '5y',
         interval: interval,
         start_date: dateMode !== 'preset' && startDate ? startDate : undefined,
         end_date: dateMode !== 'preset' && endDate ? endDate : undefined,
-        strategy_configs: configs,
-        initial_capital: 10000,
-        commission: 0.001,
-        slippage: 0.0005
+        initial_capital: initialCapital,
+        commission: commission,
+        slippage: slippage,
+        strategy_configs: configs
       };
       
       const data = await api.compareStrategies(payload);
@@ -213,6 +219,45 @@ export default function Tournament() {
                 ))}
               </div>
             )}
+          </div>
+
+          <div style={{ marginBottom: '2.5rem', position: 'relative' }}>
+            <button 
+              className={`btn btn-sm ${showSettings ? 'btn-primary' : 'btn-ghost'}`} 
+              onClick={() => setShowSettings(!showSettings)}
+              style={{ borderRadius: '100px', padding: '0.4rem 1rem' }}
+            >
+              ⚙️ Execution Settings
+            </button>
+
+            <AnimatePresence>
+              {showSettings && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  style={{ 
+                    position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: '100%', 
+                    marginTop: '0.5rem', background: 'var(--bg-elevated)', border: '1px solid var(--border-primary)',
+                    borderRadius: 'var(--radius-md)', padding: '1.2rem', width: '250px', zIndex: 10,
+                    boxShadow: 'var(--shadow-lg)', textAlign: 'left'
+                  }}
+                >
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>Initial Capital</label>
+                    <input type="number" className="input-field" value={initialCapital} onChange={e => setInitialCapital(Number(e.target.value))} style={{ width: '100%' }} />
+                  </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>Commission (%)</label>
+                    <input type="number" step="0.01" className="input-field" value={(commission * 100).toFixed(2)} onChange={e => setCommission(Number(e.target.value) / 100)} style={{ width: '100%' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>Slippage (%)</label>
+                    <input type="number" step="0.01" className="input-field" value={(slippage * 100).toFixed(2)} onChange={e => setSlippage(Number(e.target.value) / 100)} style={{ width: '100%' }} />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <button className="btn btn-primary" style={{ padding: '1rem 3rem', fontSize: '1.2rem', borderRadius: '100px' }} onClick={startTournament}>

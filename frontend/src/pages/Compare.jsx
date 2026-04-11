@@ -25,6 +25,12 @@ export default function Compare() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // Execution settings
+  const [commission, setCommission] = useState(0.001); // 0.1%
+  const [slippage, setSlippage] = useState(0.0005);   // 0.05%
+  const [initialCapital, setInitialCapital] = useState(10000);
   
   const resultsRef = useRef(null);
 
@@ -58,13 +64,12 @@ export default function Compare() {
       if (c.id === id) {
         if (field === 'strategy_id') {
           // Initialize default parameters when selecting a strategy
-          const strategyName = value;
-          const strat = strategies.find(s => s.id === strategyName);
+          const strategy = strategies.find(s => s.id === value);
           const defaultParams = {};
-          if (strat && strat.parameters) {
-            strat.parameters.forEach(p => { defaultParams[p.name] = p.default; });
-          }
-          return { ...c, [field]: value, parameters: defaultParams };
+          strategy?.parameters?.forEach(p => {
+            defaultParams[p.name] = p.default;
+          });
+          return { ...c, strategy_id: value, parameters: defaultParams };
         }
         return { ...c, [field]: value };
       }
@@ -83,7 +88,7 @@ export default function Compare() {
 
   const runComparison = async () => {
     if (!ticker) {
-      setError("Please select a ticker");
+      setError("Please select a ticker first");
       return;
     }
     const validConfigs = configs.filter(c => c.strategy_id);
@@ -154,6 +159,45 @@ export default function Compare() {
             startDate={startDate} onStartDateChange={setStartDate}
             endDate={endDate} onEndDateChange={setEndDate}
           />
+        </div>
+
+        <div style={{ position: 'relative' }}>
+          <button 
+            className={`btn ${showSettings ? 'btn-primary' : 'btn-ghost'}`} 
+            onClick={() => setShowSettings(!showSettings)}
+            title="Execution Settings"
+          >
+            ⚙️
+          </button>
+
+          <AnimatePresence>
+            {showSettings && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                style={{ 
+                  position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', 
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)',
+                  borderRadius: 'var(--radius-md)', padding: '1rem', width: '220px', zIndex: 10,
+                  boxShadow: 'var(--shadow-lg)'
+                }}
+              >
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>Initial Capital</label>
+                  <input type="number" className="input-field" value={initialCapital} onChange={e => setInitialCapital(Number(e.target.value))} style={{ width: '100%' }} />
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>Commission (%)</label>
+                  <input type="number" step="0.01" className="input-field" value={(commission * 100).toFixed(2)} onChange={e => setCommission(Number(e.target.value) / 100)} style={{ width: '100%' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>Slippage (%)</label>
+                  <input type="number" step="0.01" className="input-field" value={(slippage * 100).toFixed(2)} onChange={e => setSlippage(Number(e.target.value) / 100)} style={{ width: '100%' }} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         
         <div style={{ marginLeft: 'auto' }}>
