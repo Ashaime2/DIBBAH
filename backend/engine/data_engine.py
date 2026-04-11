@@ -93,43 +93,44 @@ def fetch_market_data(
     if df.empty:
         raise ValueError(f"No data found for ticker: {ticker}")
 
-    # Handle MultiIndex columns from yfinance v1.x
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [col[0] for col in df.columns]
+    # HANDLE MULTI-INDEX (from yahooquery or yfinance)
+    if isinstance(df.index, pd.MultiIndex) or df.index.name in ['date', 'datetime']:
+        df = df.reset_index()
 
-    # Standardize columns
-    df = df.reset_index()
-    rename_map = {}
-    for col in df.columns:
-        if isinstance(col, str):
-            lower = col.lower().replace(" ", "_")
-            rename_map[col] = lower
-    df = df.rename(columns=rename_map)
+    # Standardize column names to lowercase
+    df.columns = [str(col).lower().replace(" ", "_").replace("adj_close", "close") for col in df.columns]
 
-    # Ensure we have required columns
-    if "date" not in df.columns and "datetime" in df.columns:
-        df = df.rename(columns={"datetime": "date"})
+    # Map yahooquery 'adjclose' to 'close' if 'close' is not already what we want
+    if 'adjclose' in df.columns:
+        df = df.rename(columns={'adjclose': 'close'})
 
-    # Remove timezone info from date
-    if pd.api.types.is_datetime64_any_dtype(df["date"]):
-        try:
-            df["date"] = df["date"].dt.tz_localize(None)
-        except TypeError:
-            pass  # Already timezone-naive
+    # Ensure we have a 'date' column
+    if 'datetime' in df.columns and 'date' not in df.columns:
+        df = df.rename(columns={'datetime': 'date'})
 
-    # Keep only OHLCV
+    # Keep only what we need and in specific order to avoid any surprises
     required = ["date", "open", "high", "low", "close", "volume"]
     for col in required:
         if col not in df.columns:
-            raise ValueError(f"Missing required column: {col}. Available: {list(df.columns)}")
+             # Look for capitalized versions if lowercase failed
+             for existing in df.columns:
+                 if existing.lower() == col:
+                     df = df.rename(columns={existing: col})
+                     break
+    
+    # Final check for missing columns
+    available = list(df.columns)
+    missing = [c for c in required if c not in available]
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}. Available: {available}")
 
     df = df[required].copy()
 
-    # Clean data
+    # Clean data types
     df = df.dropna(subset=["open", "high", "low", "close"])
     df = df.sort_values("date").reset_index(drop=True)
 
-    # Save to SQLite Database
+    # Save to Database
     save_market_data(df, ticker, interval)
 
     # Calculate returns

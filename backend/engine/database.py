@@ -1,115 +1,116 @@
 import os
-import sqlite3
 import pandas as pd
 from typing import Optional
+from sqlalchemy import create_engine, MetaData, Table, Column, String, Float
+from sqlalchemy.dialects.postgresql import insert
+from dotenv import load_dotenv
 
-# Path configuration
-DB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "db")
-os.makedirs(DB_DIR, exist_ok=True)
-DB_PATH = os.path.join(DB_DIR, "market_data.sqlite")
+# Load env variables from backend/.env
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
-def get_connection() -> sqlite3.Connection:
-    """Returns a connection to the SQLite database."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+DB_URL = os.getenv("DATABASE_URL")
+
+# Create engine if DB_URL is available
+engine = None
+if DB_URL:
+    # Append the async driver or just use psycopg2 depending on the connection string
+    # Supabase gives postgresql:// format which psycopg2 natively accepts via sqlalchemy
+    engine = create_engine(DB_URL, pool_size=10, max_overflow=20)
+
+metadata = MetaData()
+
+# Define the table schema matching the previous SQLite one
+ohlcv_data = Table(
+    'ohlcv_data', metadata,
+    Column('ticker', String, primary_key=True),
+    Column('interval', String, primary_key=True),
+    Column('date', String, primary_key=True),
+    Column('open', Float),
+    Column('high', Float),
+    Column('low', Float),
+    Column('close', Float),
+    Column('volume', Float)
+)
 
 def init_db():
     """Initializes the database schema if it doesn't exist."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # Create the table for OHLCV data
-    # We use a composite primary key to ensure no duplicate rows for the same ticker/interval/date
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ohlcv_data (
-            ticker TEXT NOT NULL,
-            interval TEXT NOT NULL,
-            date TEXT NOT NULL,
-            open REAL,
-            high REAL,
-            low REAL,
-            close REAL,
-            volume REAL,
-            PRIMARY KEY (ticker, interval, date)
-        )
-    ''')
-    
-    # Create an index for faster querying by ticker and interval
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_ticker_interval_date 
-        ON ohlcv_data (ticker, interval, date)
-    ''')
-    
-    conn.commit()
-    conn.close()
+    if not engine:
+        print("Warning: No DATABASE_URL found. Database is disabled.")
+        return
+    # Create tables
+    metadata.create_all(engine)
 
 def save_market_data(df: pd.DataFrame, ticker: str, interval: str):
     """
-    Saves a dataframe of market data into the SQLite database.
-    Uses 'replace' or insert ignore logic to avoid duplicates.
+    Saves a dataframe of market data into the Supabase PostgreSQL database.
+    Uses PostgreSQL 'ON CONFLICT DO UPDATE' to elegantly handle duplicates.
     """
-    if df.empty:
+    if df.empty or not engine:
         return
         
-    conn = get_connection()
-    
-    # Prepare dataframe for SQL
-    # Ensure it only has the columns we want
-    cols = ['date', 'open', 'high', 'low', 'close', 'volume']
     insert_df = df.copy()
     
-    # Format date as string for SQLite
+    # Format date as string for DB
     if pd.api.types.is_datetime64_any_dtype(insert_df['date']):
         insert_df['date'] = insert_df['date'].dt.strftime('%Y-%m-%d %H:%M:%S')
     else:
-        # Precautionarily cast to string
         insert_df['date'] = insert_df['date'].astype(str)
         
     insert_df['ticker'] = ticker.upper()
     insert_df['interval'] = interval
     
-    # We only want the matching columns for the DB (except primary keys handled by pandas if using to_sql, but pandas to_sql doesn't support UPSERT natively well in sqlite without chunks)
-    # Instead, we convert to list of tuples and run executemany with INSERT OR IGNORE / REPLACE
-    records = insert_df[['ticker', 'interval', 'date', 'open', 'high', 'low', 'close', 'volume']].values.tolist()
+    # Format to list of dictionaries for SQLAlchemy execution
+    # Explicitly select only the 8 columns that match the table schema
+    db_cols = ['ticker', 'interval', 'date', 'open', 'high', 'low', 'close', 'volume']
+    records = insert_df[db_cols].to_dict(orient='records')
     
-    cursor = conn.cursor()
-    cursor.executemany('''
-        INSERT OR REPLACE INTO ohlcv_data 
-        (ticker, interval, date, open, high, low, close, volume)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', records)
+    # Build Postgres UPSERT statement
+    stmt = insert(ohlcv_data).values(records)
     
-    conn.commit()
-    conn.close()
+    # On conflict (primary key constraint), we update the OHLCV values
+    upsert_stmt = stmt.on_conflict_do_update(
+        index_elements=['ticker', 'interval', 'date'],
+        set_=dict(
+            open=stmt.excluded.open,
+            high=stmt.excluded.high,
+            low=stmt.excluded.low,
+            close=stmt.excluded.close,
+            volume=stmt.excluded.volume
+        )
+    )
+    
+    with engine.begin() as conn:
+        conn.execute(upsert_stmt)
 
 def load_market_data(ticker: str, interval: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> pd.DataFrame:
     """
-    Loads market data from the SQLite database.
-    Returns an empty dataframe if no data matches.
+    Loads market data from the PostgreSQL database into a Pandas DataFrame.
     """
-    conn = get_connection()
-    
-    query = "SELECT date, open, high, low, close, volume FROM ohlcv_data WHERE ticker = ? AND interval = ?"
-    params = [ticker.upper(), interval]
+    if not engine:
+        return pd.DataFrame()
+        
+    query = "SELECT date, open, high, low, close, volume FROM ohlcv_data WHERE ticker = %(ticker)s AND interval = %(interval)s"
+    params = {'ticker': ticker.upper(), 'interval': interval}
     
     if start_date:
-        query += " AND date >= ?"
-        params.append(start_date)
+        query += " AND date >= %(start_date)s"
+        params['start_date'] = start_date
     if end_date:
-        query += " AND date <= ?"
-        params.append(end_date)
+        query += " AND date <= %(end_date)s"
+        params['end_date'] = end_date
         
     query += " ORDER BY date ASC"
     
-    df = pd.read_sql_query(query, conn, params=params)
-    conn.close()
-    
-    if not df.empty:
-        # Convert date string back to datetime object
-        df['date'] = pd.to_datetime(df['date'])
-        
-    return df
+    try:
+        with engine.connect() as conn:
+            df = pd.read_sql_query(query, conn, params=params)
+            
+        if not df.empty:
+            df['date'] = pd.to_datetime(df['date'])
+        return df
+    except Exception as e:
+        print(f"Error loading market data from Supabase: {e}")
+        return pd.DataFrame()
 
 # Initialize on import
 init_db()
