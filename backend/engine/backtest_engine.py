@@ -207,6 +207,12 @@ def run_backtest(
     # Build result
     dates = [str(d)[:10] for d in df["date"]]
 
+    # Round arrays in-place where possible to avoid full copies
+    res_pv = np.round(portfolio_values, 2).tolist()
+    res_bv = np.round(benchmark_values, 2).tolist()
+    res_dd = np.round(drawdown_values, 4).tolist()
+    res_cs = np.round(cash_values, 2).tolist()
+
     result = {
         "id": str(uuid.uuid4())[:8],
         "ticker": "",  # Will be set by caller
@@ -215,10 +221,10 @@ def run_backtest(
         "parameters": strategy.parameters,
         "equity_curve": {
             "dates": dates,
-            "portfolio_value": [round(v, 2) for v in portfolio_values],
-            "benchmark_value": [round(v, 2) for v in benchmark_values],
-            "drawdown": [round(v, 4) for v in drawdown_values],
-            "cash": [round(v, 2) for v in cash_values],
+            "portfolio_value": res_pv,
+            "benchmark_value": res_bv,
+            "drawdown": res_dd,
+            "cash": res_cs,
         },
         "trades": trades,
         "signals": signal_log,

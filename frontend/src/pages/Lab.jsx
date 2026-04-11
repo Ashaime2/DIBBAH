@@ -381,9 +381,14 @@ function AssetSelector({ searchQuery, onSearch, searchResults, onSelect, period,
       </div>
 
       {loading && (
-        <div className="loading-container">
+        <div className="loading-container" style={{ textAlign: 'center' }}>
           <div className="spinner" />
-          <span>Loading market data...</span>
+          <div style={{ marginTop: '1rem' }}>
+            <span>Running backtest...</span>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.4rem', fontStyle: 'italic' }}>
+              This may take up to 1 minute : I'm too broke to pay for actual servers
+            </p>
+          </div>
         </div>
       )}
     </div>

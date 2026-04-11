@@ -18,7 +18,17 @@ COMPARE_SEMAPHORE = asyncio.Semaphore(1)
 @router.post("")
 async def compare_strategies(request: CompareRequest):
     """Compare multiple strategies on the same data with concurrency protection."""
-    async with COMPARE_SEMAPHORE:
+    try:
+        # Wait for the semaphore with a timeout to avoid 502 Bad Gateway from proxy timeouts
+        # If we wait > 45s, something is probably wrong or traffic is too high.
+        try:
+            await asyncio.wait_for(COMPARE_SEMAPHORE.acquire(), timeout=45.0)
+        except asyncio.TimeoutError:
+            raise HTTPException(
+                status_code=503, 
+                detail="The server is currently processing too many backtests. Please try again in 1 minute."
+            )
+
         try:
             df = fetch_market_data(request.ticker, request.period, request.interval)
             
@@ -52,9 +62,7 @@ async def compare_strategies(request: CompareRequest):
                 )
                 result["kpis"] = kpis
                 
-                # --- MEMORY OPTIMIZATION: Downsample Equity Curve ---
-                # We don't need 20,000 points in the browser chart for a 5y backtest.
-                # Downsampling to 600-800 points preserves the visual shape and saves MASSIVE RAM.
+                # --- MEMORY OPTIMIZATION ---
                 MAX_POINTS = 800
                 curve_len = len(result["equity_curve"]["dates"])
                 if curve_len > MAX_POINTS:
@@ -67,13 +75,9 @@ async def compare_strategies(request: CompareRequest):
                     if "drawdown" in ec: ec["drawdown"] = ec["drawdown"][::step]
 
                 results.append(result)
-                
-                # Explicit cleanup after each strategy iteration
                 gc.collect()
 
-            # Generate ranking
             ranking = _generate_ranking(results)
-
             return {
                 "results": results,
                 "ranking": ranking,
@@ -82,12 +86,14 @@ async def compare_strategies(request: CompareRequest):
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            # Important: ensure we catch and don't leak the semaphore lock if something weird happens 
-            # (though 'async with' handles this automatically)
             raise HTTPException(status_code=500, detail=f"Compare error: {str(e)}")
         finally:
-            # Final cleanup
             gc.collect()
+            COMPARE_SEMAPHORE.release()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Concurrency error: {str(e)}")
 
 
 def _generate_ranking(results: List[Dict[str, Any]]) -> Dict[str, Any]:

@@ -239,6 +239,18 @@ export default function Compare() {
         </AnimatePresence>
       </div>
 
+      {loading && (
+        <div className="loading-container" style={{ margin: '3rem auto', textAlign: 'center' }}>
+          <div className="spinner" style={{ width: 50, height: 50, borderWidth: 3 }} />
+          <div style={{ marginTop: '1.5rem', color: 'var(--accent-amber)', fontSize: '1.1rem' }}>
+            Running concurrent comparisons...
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontStyle: 'italic' }}>
+              This may take up to 1 minute : I'm too broke to pay for actual servers
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Results View */}
       {results && !loading && (
         <div ref={resultsRef}>
