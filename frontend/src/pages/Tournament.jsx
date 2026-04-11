@@ -44,7 +44,7 @@ export default function Tournament() {
   useEffect(() => {
     api.getStrategies().then(data => {
       const loaded = (data.strategies || [])
-        .filter(s => s.id !== 'custom_builder')
+        .filter(s => s.id !== 'custom_builder' && s.id !== 'ml_random_forest')
         .map(s => {
           const defaults = {};
           if (s.parameters) {
