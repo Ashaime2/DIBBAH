@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = 'https://dibbah.onrender.com/api';
 
 class ApiService {
   async _fetch(url, options = {}) {
