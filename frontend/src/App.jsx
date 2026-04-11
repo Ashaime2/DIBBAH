@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, NavLink, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, NavLink, Link, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import Landing from './pages/Landing';
 import Lab from './pages/Lab';
 import Strategies from './pages/Strategies';
@@ -50,9 +51,28 @@ function Footer() {
   );
 }
 
+function PageTitleHandler() {
+  const location = useLocation();
+  
+  useEffect(() => {
+    const titles = {
+      '/': 'DIBBAH | Home',
+      '/lab': 'DIBBAH | Lab',
+      '/compare': 'DIBBAH | Comparison',
+      '/tournament': 'DIBBAH | Tournament 🏆',
+      '/strategies': 'DIBBAH | Strategy Hub',
+      '/methodology': 'DIBBAH | Methodology'
+    };
+    document.title = titles[location.pathname] || 'DIBBAH — Do I Beat Buy And Hold?';
+  }, [location]);
+  
+  return null;
+}
+
 export default function App() {
   return (
     <Router>
+      <PageTitleHandler />
       <div className="app-layout">
         <Navbar />
         <Routes>
