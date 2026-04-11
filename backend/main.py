@@ -19,7 +19,7 @@ import os
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], # Allow all for easy Vercel deployment without strict matching
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
