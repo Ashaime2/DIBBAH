@@ -18,6 +18,9 @@ from .strategies.macd import MACDStrategy
 from .strategies.volatility_breakout import VolatilityBreakoutStrategy
 from .strategies.ml_random_forest import MLRandomForestStrategy
 from .strategies.builder import BuilderStrategy
+from .strategies.supertrend import SuperTrendStrategy
+from .strategies.parabolic_sar import ParabolicSARStrategy
+from .strategies.donchian_breakout import DonchianBreakoutStrategy
 
 
 # Strategy Registry
@@ -31,6 +34,9 @@ STRATEGY_REGISTRY = {
     "volatility_breakout": VolatilityBreakoutStrategy,
     "ml_random_forest": MLRandomForestStrategy,
     "custom_builder": BuilderStrategy,
+    "supertrend": SuperTrendStrategy,
+    "parabolic_sar": ParabolicSARStrategy,
+    "donchian_breakout": DonchianBreakoutStrategy,
 }
 
 
