@@ -2,6 +2,7 @@ import asyncio
 import gc
 from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException
+from fastapi.concurrency import run_in_threadpool
 
 from api.models.schemas import CompareRequest
 from engine.data_engine import fetch_market_data
@@ -11,7 +12,6 @@ from engine.analysis.performance import calculate_kpis
 router = APIRouter()
 
 # Global semaphore to limit heavy backtests to 1 at a time on memory-constrained Render instances
-# This prevents OOM (Out of Memory) by queuing concurrent requests instead of crashing the server.
 COMPARE_SEMAPHORE = asyncio.Semaphore(1)
 
 
@@ -20,9 +20,9 @@ async def compare_strategies(request: CompareRequest):
     """Compare multiple strategies on the same data with concurrency protection."""
     try:
         # Wait for the semaphore with a timeout to avoid 502 Bad Gateway from proxy timeouts
-        # If we wait > 45s, something is probably wrong or traffic is too high.
+        # Reduced to 28s to ensure we respond before Render's proxy timeout (usually 30s)
         try:
-            await asyncio.wait_for(COMPARE_SEMAPHORE.acquire(), timeout=45.0)
+            await asyncio.wait_for(COMPARE_SEMAPHORE.acquire(), timeout=28.0)
         except asyncio.TimeoutError:
             raise HTTPException(
                 status_code=503, 
@@ -30,7 +30,10 @@ async def compare_strategies(request: CompareRequest):
             )
 
         try:
-            df = fetch_market_data(request.ticker, request.period, request.interval)
+            # Offload synchronous data fetching to a thread pool
+            df = await run_in_threadpool(
+                fetch_market_data, request.ticker, request.period, request.interval
+            )
             
             if len(df) < 2:
                 raise ValueError(f"Insufficient data points ({len(df)}) for ticker {request.ticker} on interval {request.interval}. Please choose a longer period or a more granular interval.")
@@ -41,7 +44,10 @@ async def compare_strategies(request: CompareRequest):
                 parameters = config.get("parameters", {})
 
                 strategy = get_strategy(strategy_id, parameters)
-                result = run_backtest(
+                
+                # Offload heavy backtesting simulation to a thread pool to avoid blocking the event loop
+                result = await run_in_threadpool(
+                    run_backtest,
                     df=df,
                     strategy=strategy,
                     initial_capital=request.initial_capital,
