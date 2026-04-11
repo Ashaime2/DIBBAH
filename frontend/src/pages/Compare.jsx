@@ -25,6 +25,17 @@ export default function Compare() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
+  
+  const resultsRef = useRef(null);
+
+  // Auto-scroll when results arrive
+  useEffect(() => {
+    if (results && resultsRef.current) {
+      setTimeout(() => {
+        resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [results]);
 
   useEffect(() => {
     api.getStrategies().then(data => {
@@ -230,7 +241,9 @@ export default function Compare() {
 
       {/* Results View */}
       {results && !loading && (
-        <CompareResultsView results={results.results} ranking={results.ranking} ticker={ticker} />
+        <div ref={resultsRef}>
+          <CompareResultsView results={results.results} ranking={results.ranking} ticker={ticker} />
+        </div>
       )}
     </div>
   );

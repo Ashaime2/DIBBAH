@@ -71,10 +71,19 @@ def _generate_ranking(results: List[Dict[str, Any]]) -> Dict[str, Any]:
         "by_win_rate": sorted(strategies, key=lambda x: x[1]["win_rate"], reverse=True),
     }
 
+    # Mapping of ranking criterion to their actual KPI keys
+    kpi_map = {
+        "by_return": "total_return",
+        "by_sharpe": "sharpe_ratio",
+        "by_drawdown": "max_drawdown",
+        "by_win_rate": "win_rate"
+    }
+
     formatted = {}
     for criterion, ranked in rankings.items():
+        kpi_key = kpi_map.get(criterion, criterion.replace("by_", ""))
         formatted[criterion] = [
-            {"rank": i + 1, "strategy": name, "value": kpis.get(criterion.replace("by_", ""), 0)}
+            {"rank": i + 1, "strategy": name, "value": kpis.get(kpi_key, 0)}
             for i, (name, kpis) in enumerate(ranked)
         ]
 
