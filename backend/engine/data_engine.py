@@ -11,6 +11,12 @@ from typing import Optional, Dict, Any, Tuple
 import numpy as np
 import pandas as pd
 import yfinance as yf
+import requests
+
+yf_session = requests.Session()
+yf_session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+})
 
 from .database import save_market_data, load_market_data
 
@@ -51,9 +57,9 @@ def fetch_market_data(
 
     try:
         if start_date and end_date:
-            df = yf.download(ticker, start=start_date, end=end_date, interval=interval, progress=False)
+            df = yf.download(ticker, start=start_date, end=end_date, interval=interval, progress=False, session=yf_session)
         else:
-            df = yf.download(ticker, period=period, interval=interval, progress=False)
+            df = yf.download(ticker, period=period, interval=interval, progress=False, session=yf_session)
     except Exception as e:
         raise ValueError(f"Failed to fetch data for {ticker}: {str(e)}")
 
@@ -122,7 +128,7 @@ def get_ticker_name(ticker: str) -> str:
     if ticker.upper() in common_names:
         return common_names[ticker.upper()]
     try:
-        tk = yf.Ticker(ticker)
+        tk = yf.Ticker(ticker, session=yf_session)
         info = tk.info
         return info.get("longName", info.get("shortName", ticker))
     except Exception:
