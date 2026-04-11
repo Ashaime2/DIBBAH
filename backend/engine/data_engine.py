@@ -135,10 +135,10 @@ def _standardize_df(df: pd.DataFrame, ticker: str, interval: str, save: bool = T
     existing_required = [c for c in required if c in df.columns]
     df = df[existing_required].copy()
 
-    # 4. NORMALIZE DATES (The fix for tz-aware vs tz-naive)
-    df["date"] = pd.to_datetime(df["date"])
-    if df["date"].dt.tz is not None:
-        df["date"] = df["date"].dt.tz_localize(None)
+    # 4. NORMALIZE DATES (The absolute NUCLEAR fix for tz-aware vs tz-naive)
+    # Step 1: Force everything to datetime objects, and if any are aware, make them ALL UTC aware first
+    # Step 2: Strip the timezone to ensure naive comparison everywhere
+    df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None)
 
     # 5. CLEAN DATA TYPES
     for col in ["open", "high", "low", "close", "volume"]:
