@@ -189,6 +189,8 @@ def calculate_monthly_returns(dates: List[str], portfolio_values: List[float]) -
 
     monthly = {}
     for (year, month), group in df.groupby(["year", "month"]):
+        if group.empty:
+            continue
         start_val = group["value"].iloc[0]
         end_val = group["value"].iloc[-1]
         ret = (end_val - start_val) / start_val * 100 if start_val > 0 else 0

@@ -18,6 +18,9 @@ async def compare_strategies(request: CompareRequest):
     """Compare multiple strategies on the same data."""
     try:
         df = fetch_market_data(request.ticker, request.period, request.interval)
+        
+        if len(df) < 2:
+            raise ValueError(f"Insufficient data points ({len(df)}) for ticker {request.ticker} on interval {request.interval}. Please choose a longer period or a more granular interval.")
 
         results = []
         for config in request.strategy_configs:

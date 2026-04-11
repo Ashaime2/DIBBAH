@@ -13,6 +13,7 @@ import pandas as pd
 import yfinance as yf
 import requests
 from yahooquery import Ticker
+import gc
 
 yf_session = requests.Session()
 yf_session.headers.update({
@@ -159,6 +160,9 @@ def _standardize_df(df: pd.DataFrame, ticker: str, interval: str, save: bool = T
             close_series = close_series.iloc[:, 0]
         df["returns"] = close_series.pct_change()
         df["cum_returns"] = (1 + df["returns"].fillna(0)).cumprod()
+
+    # Explicitly trigger GC to free memory on constrained environments like Render
+    gc.collect()
 
     return df
 
