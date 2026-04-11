@@ -15,14 +15,18 @@ app = FastAPI(
 
 import os
 
-# CORS for local and production
+# Permissive CORS for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allow all for easy Vercel deployment without strict matching
+    allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
 )
+
+@app.get("/")
+async def root():
+    return {"message": "SignalForge API is running. Use /api/health for status."}
 
 # Register routers
 app.include_router(market.router, prefix="/api/market", tags=["Market Data"])
