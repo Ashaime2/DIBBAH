@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import { formatPercent, formatRatio } from '../utils/formatters';
 import TimeSelector from '../components/TimeSelector';

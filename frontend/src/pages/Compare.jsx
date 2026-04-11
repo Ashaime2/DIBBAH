@@ -112,9 +112,9 @@ export default function Compare() {
           strategy_id: c.strategy_id,
           parameters: c.parameters
         })),
-        initial_capital: 10000,
-        commission: 0.001,
-        slippage: 0.0005
+        initial_capital: initialCapital,
+        commission: commission,
+        slippage: slippage
       };
       
       const data = await api.compareStrategies(payload);
