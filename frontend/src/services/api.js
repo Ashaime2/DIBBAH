@@ -14,7 +14,7 @@ class ApiService {
       return response.json();
     } catch (err) {
       if (err.message.includes('Failed to fetch')) {
-        throw new Error('Cannot connect to backend. Make sure the API server is running on port 8000.');
+        throw new Error('SignalForge: Could not reach the backtest engine (Render). Check your internet or wait for the server to wake up.');
       }
       throw err;
     }
