@@ -227,7 +227,7 @@ export default function Tournament() {
           <div style={{ fontSize: '1.2rem', color: 'var(--accent-amber)', marginTop: '2rem', animation: 'pulse 1.5s infinite', textAlign: 'center', maxWidth: '400px', margin: '0 auto' }}>
             Simulating {strategies.length} concurrent backtests...
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontStyle: 'italic' }}>
-              This may take up to 1 minute : I'm too broke to pay for actual servers
+              This may take few minutes or even crash : I'm too broke to pay actual servers
             </p>
           </div>
         </div>

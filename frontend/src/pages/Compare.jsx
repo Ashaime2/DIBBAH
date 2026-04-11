@@ -245,7 +245,7 @@ export default function Compare() {
           <div style={{ marginTop: '1.5rem', color: 'var(--accent-amber)', fontSize: '1.1rem' }}>
             Running concurrent comparisons...
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontStyle: 'italic' }}>
-              This may take up to 1 minute : I'm too broke to pay for actual servers
+              This may take few minutes or even crash : I'm too broke to pay actual servers
             </p>
           </div>
         </div>
