@@ -55,8 +55,20 @@ def fetch_market_data(
     # In a full prod system, we would accurately check if the exact dates are present.
     # For now, if the df is not empty and covers a reasonable amount of data, we return it.
     if not cached_df.empty and len(cached_df) > 200:
+        # Standardize potentially duplicated columns in cache
+        if "close" in cached_df.columns:
+            # If multiple "close" columns exist, keep only the first one
+            cols = pd.Series(cached_df.columns)
+            for dupe in cols[cols.duplicated()].unique():
+                cols[cols == dupe] = [f"{dupe}_{i}" if i != 0 else dupe for i in range(len(cols[cols == dupe]))]
+            cached_df.columns = cols
+            
         # Calculate returns missing from database
-        cached_df["returns"] = cached_df["close"].pct_change()
+        # Use values.flatten() to ensure we are assigning a 1D array
+        close_series = cached_df["close"]
+        if isinstance(close_series, pd.DataFrame):
+            close_series = close_series.iloc[:, 0]
+        cached_df["returns"] = close_series.pct_change()
         return cached_df
 
 
@@ -134,7 +146,12 @@ def fetch_market_data(
     save_market_data(df, ticker, interval)
 
     # Calculate returns
-    df["returns"] = df["close"].pct_change()
+    # Use iloc[:, 0] if duplicate columns somehow still exist
+    close_series = df["close"]
+    if isinstance(close_series, pd.DataFrame):
+        close_series = close_series.iloc[:, 0]
+    df["returns"] = close_series.pct_change()
+    df["cum_returns"] = (1 + df["returns"].fillna(0)).cumprod()
 
     return df
 
